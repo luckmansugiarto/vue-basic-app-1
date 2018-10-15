@@ -1,0 +1,129 @@
+<html>
+
+    <head>
+    	<title>VueJS & Firebase From Scratch</title>
+	</head>
+
+	<body>
+		<div id="app">
+			<h1 :style="mainStyle">{{appTitle}}</h1>
+			<label>First Name</label>
+			<input type="text" v-model="firstName"/>
+			<button @click="saveData()">Save</button>
+			<button v-if="dataId != null" @click="clearData()">Clear Data</button>
+
+			<ul :style="listStyle">
+				<li v-for="(entry, idx) in dbData.testDataArray" :key="idx" :style="bulletStyle">
+					{{ entry.firstName }}
+					<button @click="useData(idx)">Use</button>
+					<button @click="deleteData(idx)">Delete</button>
+				</li>
+			</ul>
+		</div>
+	</body>
+
+	<script src="https://cdn.jsdelivr.net/npm/vue"></script>
+	<script src="https://www.gstatic.com/firebasejs/5.5.4/firebase.js"></script>
+	<script>
+	  // Initialize Firebase
+	  var config = {
+	    apiKey: "AIzaSyAZquTDfLG7U5LJlTOSRbCH4LGh-tdp3vs",
+	    authDomain: "app-1-a23e5.firebaseapp.com",
+	    databaseURL: "https://app-1-a23e5.firebaseio.com",
+	    projectId: "app-1-a23e5",
+	    storageBucket: "app-1-a23e5.appspot.com",
+	    messagingSenderId: "861871663254"
+	  };
+	  firebase.initializeApp(config);
+	</script>
+	<script>
+		Vue.config.devtools = true;
+    	var app = new Vue({
+    		created: function() {
+    			let that = this
+    			that.db = firebase.firestore()
+
+    			let query = that.db.collection('TestData').orderBy('firstName', 'desc')
+
+    			query.onSnapshot((snapshot) => {
+    				// that.dbData.testDataArray won't work as Vue won't recognize it
+    				Vue.set(that.dbData, 'testDataArray', []);
+    				snapshot.forEach((doc) => {
+    					that.dbData.testDataArray.push({id: doc.id, firstName: doc.data().firstName})
+    				});
+    			});
+    		},
+			el : '#app',
+			data: {
+				appTitle: 'My First VueJS',
+				bulletStyle: {
+					'padding-left': '5px'
+				},
+				db: {},
+				dbData: {},
+				dataId: null,
+				firstName: 'My Firstname',
+				listStyle: {
+					'list-style-type': 'none'
+				},
+				mainStyle: {
+					'color': 'red'
+				}
+			},
+			methods: {
+				clearData: () => {
+					app.dataId = null;
+					app.firstName = '';
+				},
+				deleteData: (idx) => {
+					let _data = app.dbData.testDataArray[idx]
+
+					if (_data) {
+						let docRef = app.db.collection('TestData').doc(_data.id)
+
+						if (docRef) {
+							docRef.delete()
+								.then(() => {
+									alert(_data.firstName + ' has been deleted')
+								})
+								.catch(() => {
+									console.log('Error deleting ' + _data.firstName)
+								})
+						}
+					}
+				},
+				useData: (idx) => {
+					let _data = app.dbData.testDataArray[idx]
+
+					if (_data) {
+						app.dataId = _data.id
+						app.firstName = _data.firstName
+					}
+				},
+				saveData: () => {
+					if (app.dataId == null) {
+						app.db.collection('TestData').add({
+							firstName: app.firstName
+						}).then(() => {
+							app.clearData();
+						}).catch(() => {
+							console.log('Error in saving your data');
+						});
+					} else {
+						let docRef = app.db.collection('TestData').doc(app.dataId)
+
+						if (docRef) {
+							docRef.set({
+								'firstName': app.firstName
+							}).then(() => {
+								app.clearData()
+							}).catch(() => {
+								console.log('Error updating data ' + app.firstName)
+							})
+						}
+					}
+				}
+			}
+    	})
+</script>
+<html>
